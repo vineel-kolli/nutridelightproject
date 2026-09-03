@@ -325,103 +325,118 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     );
   }
 
-  return (
-    <div className="screen-container">
-      {/* ── Layer 1: Camera video ── */}
-      <CameraView videoRef={videoRef} />
+﻿  return (
+    <div className="screen-container portrait-kiosk">
+      <header className="kiosk-header">
+        <div className="kiosk-header-logo">
+          <img src="/favicon.svg" alt="Nutri Delight" />
+        </div>
+        <div className="kiosk-header-title">
+          ROCK <span>•</span> PAPER <span>•</span> SCISSORS
+        </div>
+        <button className="kiosk-exit" onClick={onBack} aria-label="Exit game">
+          EXIT
+        </button>
+      </header>
 
-      {/* ── Layer 1.5: Hand landmark skeleton ── */}
-      <HandLandmarkOverlay canvasRef={landmarkCanvasRef} />
-
-      {/* ── Layer 2: Scene gradient for readability ── */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%)',
-        }}
-      />
-
-      {/* ── Layer 3: Buddy stage ── */}
-      <div className="buddy-stage">
-        {showBuddyMoveVisual && (
-          <div className="buddy-move-visual" aria-hidden="true">
-            <img src={buddyMoveAsset!} alt="" />
+      {/* Main Content Area */}
+      <main className="kiosk-main-content">
+        {/* Score HUD at top */}
+        {showHUD && (
+          <div className="kiosk-score-wrapper">
+            <ScoreHUD
+              playerScore={state.playerScore}
+              buddyScore={state.buddyScore}
+              round={state.round}
+            />
           </div>
         )}
 
-        <BuddyAvatar state={buddyAvatarState} message={detectionPromptText} />
-      </div>
+        {/* Camera Area */}
+        <section className="kiosk-camera-section">
+          <div className="camera-container-box">
+            {/* Corner brackets */}
+            <div className="camera-bracket bracket-tl" />
+            <div className="camera-bracket bracket-tr" />
+            <div className="camera-bracket bracket-bl" />
+            <div className="camera-bracket bracket-br" />
 
-      {/* ── Layer 5: Score HUD ── */}
-      {showHUD && (
-        <ScoreHUD
-          playerScore={state.playerScore}
-          buddyScore={state.buddyScore}
-          round={state.round}
-        />
-      )}
+            {/* Hand Detected Indicator */}
+            {gestureStatus?.kind === 'stable' && (
+              <div className="hand-detected-indicator">
+                <span className="dot"></span> HAND DETECTED
+              </div>
+            )}
 
-      {/* ── Layer 6: Countdown overlay ── */}
-      {showCountdown && <CountdownOverlay value={state.countdownValue} />}
+            <div className="player-camera">
+              <CameraView videoRef={videoRef} />
+              <HandLandmarkOverlay canvasRef={landmarkCanvasRef} />
+              {showCountdown && <CountdownOverlay value={state.countdownValue} />}
+              <MoveReveal
+                playerMove={state.playerMove}
+                buddyMove={state.buddyMove}
+                outcome={state.roundOutcome}
+                visible={showReveal}
+              />
+            </div>
+          </div>
+        </section>
+      </main>
 
-      {/* ── Layer 6: Move reveal / round result ── */}
-      <MoveReveal
-        playerMove={state.playerMove}
-        buddyMove={state.buddyMove}
-        outcome={state.roundOutcome}
-        visible={showReveal}
-      />
-
-      {/* ── Waiting for Start overlay ── */}
-      {state.phase === 'waitingForStart' && (
-        <div
-          className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-4 z-30"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-        >
-          <button
-            className="btn-primary"
-            onClick={() => {
-              AudioManager.preload();
-              dispatch({ type: 'START_MATCH' });
-            }}
-            id="game-start-match-btn"
-          >
-            START GAME
-          </button>
+      {/* Buddy Area */}
+      <section className="kiosk-buddy-section">
+        {/* Buddy Speech Bubble */}
+        <div className="buddy-speech-bubble">
+          <span>I'm ready!</span><br/>
+          <strong>Beat me<br/>if you can! 💪</strong>
         </div>
+
+        {/* Mascot */}
+        <div className="buddy-mascot-container">
+          {showBuddyMoveVisual ? (
+            <img className="buddy-avatar" src={buddyMoveAsset!} alt="Buddy Move" />
+          ) : (
+            <BuddyAvatar state={buddyAvatarState} />
+          )}
+        </div>
+        
+        {/* Background text graphic */}
+        <div className="buddy-bg-text">
+          BUDDY<br/><span>BEAT ME!</span>
+        </div>
+      </section>
+
+      {/* Overlays */}
+      {state.phase === 'waitingForStart' && (
+        <button
+          className="kiosk-start-button"
+          onClick={() => {
+            AudioManager.preload();
+            dispatch({ type: 'START_MATCH' });
+          }}
+          id="game-start-match-btn"
+        >
+          START GAME
+        </button>
       )}
 
-      {/* ── Match intro overlay ── */}
       {state.phase === 'matchIntro' && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-          <div
-            className="animate-bounce-in text-center"
-            style={{
-              fontFamily: 'var(--font-display)',
-              color: 'white',
-              textShadow: '0 4px 20px rgba(0,0,0,0.6)',
-            }}
-          >
-            <div style={{ fontSize: 'clamp(2rem, 7vw, 3.5rem)', fontWeight: 900 }}>
-              FIRST TO {GAME_CONFIG.WINS_TO_MATCH}
-            </div>
-            <div style={{ fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', fontWeight: 900, color: '#4db868' }}>
-              WINS! 🏆
-            </div>
+        <div className="kiosk-intro-overlay">
+          <div className="animate-bounce-in kiosk-intro-card">
+            <div>FIRST TO {GAME_CONFIG.WINS_TO_MATCH}</div>
+            <div>WINS! 🏆</div>
           </div>
         </div>
       )}
 
-      {/* ── Back button ── */}
-      {/* ── Back button ── */}
-
-       
-
-      {/* ── Dev debug info (hidden in production) ── */}
       {import.meta.env.DEV && debugInfo && (
         <div
           className="absolute top-20 left-2 z-50 text-xs font-mono p-2 rounded"
-          style={{ background: 'rgba(0,0,0,0.7)', color: '#0f0', maxWidth: 200 }}
+          style={{
+            background: 'rgba(0,0,0,0.7)',
+            color: '#0f0',
+            maxWidth: 200,
+          }}
         >
           <div>phase: {state.phase}</div>
           <div>label: {debugInfo.label}</div>
