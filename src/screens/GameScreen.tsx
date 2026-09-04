@@ -31,22 +31,56 @@ interface GameScreenProps {
 function resolveBuddyState(
   phase: string,
   buddyMove: RpsMove | null,
-  roundOutcome: string | null,
+  gameOutcome: string | null,
   matchResult: string | null
 ): AvatarState {
-  if (matchResult === 'playerWin') return 'matchWin';  // Buddy lost the match
-  if (matchResult === 'buddyWin') return 'matchLoss';  // Buddy won the match
-
-  if (phase === 'reveal' || phase === 'roundResult') {
-    if (buddyMove) return buddyMove as AvatarState;
-    if (roundOutcome === 'playerWin') return 'roundWin';
-    if (roundOutcome === 'buddyWin') return 'roundLoss';
-    if (roundOutcome === 'draw') return 'draw';
+  if (matchResult === 'playerWin') {
+    return 'matchWin';
   }
 
-  if (phase === 'countdown' || phase === 'capture') return 'countdown';
-  if (phase === 'waitingForStart') return 'listening';
-  if (phase === 'roundReady' || phase === 'matchIntro') return 'ready';
+  if (matchResult === 'buddyWin') {
+    return 'matchLoss';
+  }
+
+  if (
+    phase === 'reveal' ||
+    phase === 'gameResult'
+  ) {
+    if (buddyMove) {
+      return buddyMove as AvatarState;
+    }
+
+    if (gameOutcome === 'playerWin') {
+      return 'roundWin';
+    }
+
+    if (gameOutcome === 'buddyWin') {
+      return 'roundLoss';
+    }
+
+    if (gameOutcome === 'draw') {
+      return 'draw';
+    }
+  }
+
+  if (
+    phase === 'countdown' ||
+    phase === 'capture'
+  ) {
+    return 'countdown';
+  }
+
+  if (phase === 'waitingForStart') {
+    return 'listening';
+  }
+
+  if (
+    phase === 'gameReady' ||
+    phase === 'matchIntro'
+  ) {
+    return 'ready';
+  }
+
   return 'idle';
 }
 
@@ -114,13 +148,33 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   }, [state.phase, startCamera]);
 
   // ─── Gesture detection ───
-  const handleStableGesture = useCallback((move: RpsMove) => {
-    if (state.phase !== 'capture' || captureLockedRef.current) return;
-    captureLockedRef.current = true;
-    dispatch({ type: 'PLAYER_CAPTURED', payload: { playerMove: move } });
-  }, [state.phase]);
+  const handleStableGesture = useCallback(
+  (move: RpsMove) => {
+    if (
+      state.phase !== 'capture' ||
+      captureLockedRef.current
+    ) {
+      return;
+    }
 
-  const { gestureStatus, debugInfo, serviceReady } = useGestureDetection({
+    captureLockedRef.current = true;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    dispatch({
+      type: 'PLAYER_CAPTURED',
+      payload: {
+        playerMove: move,
+      },
+    });
+  },
+  [state.phase]
+);
+
+  const { gestureStatus, serviceReady } = useGestureDetection({
     videoRef,
     phase: state.phase,
     onStableGesture: handleStableGesture,
@@ -129,7 +183,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
   // ─── Detection prompt from gesture status ───
   useEffect(() => {
-    if (state.phase === 'waitingForStart' || state.phase === 'roundReady') {
+    if (state.phase === 'waitingForStart' || state.phase === 'gameReady') {
       const nextPrompt =
         gestureStatus.kind === 'noHand'
           ? '🖐 Show your hand'
@@ -174,9 +228,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         break;
       }
 
-      case 'roundReady': {
+      case 'gameReady': {
         timerRef.current = setTimeout(() => {
-          dispatch({ type: 'ROUND_START' });
+          dispatch({ type: 'GAME_START' });
         }, 800);
         break;
       }
@@ -222,7 +276,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       }
 
       case 'reveal': {
-        const outcome = state.roundOutcome;
+        const outcome = state.gameOutcome;
         if (outcome === 'playerWin') {
           AudioManager.play('playerRoundWin');
           AudioManager.playVoice('buddyRoundEncourage');
@@ -240,14 +294,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         break;
       }
 
-      case 'roundResult': {
+      case 'gameResult': {
         const holdMs =
-          state.roundOutcome === 'draw'
+          state.gameOutcome === 'draw'
             ? GAME_CONFIG.DRAW_RESULT_HOLD_MS
-            : GAME_CONFIG.ROUND_RESULT_HOLD_MS;
+            : GAME_CONFIG.GAME_RESULT_HOLD_MS;
 
         timerRef.current = setTimeout(() => {
-          dispatch({ type: 'ROUND_RESULT_DONE' });
+          dispatch({ type: 'GAME_RESULT_DONE' });
         }, holdMs);
         break;
       }
@@ -277,26 +331,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const buddyAvatarState = resolveBuddyState(
     state.phase,
     state.buddyMove,
-    state.roundOutcome,
+    state.gameOutcome,
     state.matchResult
   );
 
   const showHUD = [
-    'countdown', 'capture', 'reveal', 'roundResult', 'roundReady',
+    'countdown', 'capture', 'reveal', 'gameResult', 'gameReady',
   ].includes(state.phase);
 
   const showCountdown =
     state.phase === 'countdown' && state.countdownValue !== null;
 
   const showReveal =
-    state.phase === 'reveal' || state.phase === 'roundResult';
+    state.phase === 'reveal' || state.phase === 'gameResult';
 
-  const detectionPromptText =
-    state.phase === 'cameraSetup'
-      ? 'Starting camera...'
-      : state.phase === 'waitingForStart' && !serviceReady
-        ? '⏳ Loading gesture model...'
-        : state.detectionPrompt;
+  
 
   const buddyMoveAsset =
     state.buddyMove === 'rock'
@@ -308,7 +357,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           : null;
 
   const showBuddyMoveVisual =
-    (state.phase === 'reveal' || state.phase === 'roundResult') &&
+    (state.phase === 'reveal' || state.phase === 'gameResult') &&
     !!buddyMoveAsset;
 
   // ─── Camera error state ───
@@ -325,7 +374,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     );
   }
 
-﻿  return (
+  return (
     <div className="screen-container portrait-kiosk">
       <header className="kiosk-header">
         <div className="kiosk-header-logo">
@@ -347,7 +396,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             <ScoreHUD
               playerScore={state.playerScore}
               buddyScore={state.buddyScore}
-              round={state.round}
+              currentGame={state.currentGame}
+              totalGames={state.totalGames}
             />
           </div>
         )}
@@ -375,7 +425,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
               <MoveReveal
                 playerMove={state.playerMove}
                 buddyMove={state.buddyMove}
-                outcome={state.roundOutcome}
+                outcome={state.gameOutcome}
                 visible={showReveal}
               />
             </div>
@@ -387,8 +437,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       <section className="kiosk-buddy-section">
         {/* Buddy Speech Bubble */}
         <div className="buddy-speech-bubble">
-          <span>I'm ready!</span><br/>
-          <strong>Beat me<br/>if you can! 💪</strong>
+          <span>I'm ready!</span><br />
+          <strong>Beat me<br />if you can! 💪</strong>
         </div>
 
         {/* Mascot */}
@@ -399,10 +449,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             <BuddyAvatar state={buddyAvatarState} />
           )}
         </div>
-        
+
         {/* Background text graphic */}
         <div className="buddy-bg-text">
-          BUDDY<br/><span>BEAT ME!</span>
+          BUDDY<br /><span>BEAT ME!</span>
         </div>
       </section>
 
@@ -423,14 +473,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       {state.phase === 'matchIntro' && (
         <div className="kiosk-intro-overlay">
           <div className="animate-bounce-in kiosk-intro-card">
-            <div>FIRST TO {GAME_CONFIG.WINS_TO_MATCH}</div>
+            <div>PLAY {state.totalGames} GAMES!</div>
             <div>WINS! 🏆</div>
           </div>
         </div>
       )}
 
-      {import.meta.env.DEV && debugInfo && (
-        <div
+      {/* {import.meta.env.DEV && debugInfo && (
+       <div
           className="absolute top-20 left-2 z-50 text-xs font-mono p-2 rounded"
           style={{
             background: 'rgba(0,0,0,0.7)',
@@ -446,7 +496,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
           <div>motion: {debugInfo.motion.toFixed(3)}</div>
           <div>status: {debugInfo.status.kind}</div>
         </div>
-      )}
+      )}*/}
     </div>
-  );
+ );
 };

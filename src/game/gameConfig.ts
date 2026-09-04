@@ -1,37 +1,45 @@
 // ============================================================
-// Centralized game configuration — change here, nowhere else
+// Static game configuration
+//
+// Business configuration such as totalGames and prizes will
+// eventually come from the backend/admin system.
+//
+// These values are technical gameplay timings.
 // ============================================================
 
 export const GAME_CONFIG = {
-  // Score to win
-  WINS_TO_MATCH: 2,
+  /**
+   * Frontend fallback only.
+   *
+   * Production source of truth will be backend GameConfig.
+   */
+  DEFAULT_TOTAL_GAMES: 5,
 
-  // Countdown timing (ms per step)
+  // Countdown timing
   COUNTDOWN_STEP_MS: 900,
 
-  // How long "GO" stays visible before capture
+  // How long GO remains visible
   GO_HOLD_MS: 400,
 
-  // How long the capture window stays open (ms)
+  // Gesture capture window
   CAPTURE_WINDOW_MS: 2000,
 
-  // How long move reveal overlay stays before result banner
+  // Move reveal duration
   REVEAL_DURATION_MS: 800,
 
-  // How long round result banner stays (win/loss)
-  ROUND_RESULT_HOLD_MS: 1800,
+  // Game result duration
+  GAME_RESULT_HOLD_MS: 1800,
 
-  // How long draw result stays (shorter — no score changed)
+  // Draw result duration
   DRAW_RESULT_HOLD_MS: 1100,
 
-  // Match intro duration (ms)
+  // Match intro duration
   MATCH_INTRO_MS: 1500,
 
-  // Screen transition animation (ms) — used by CSS too
+  // Screen transition animation
   SCREEN_TRANSITION_MS: 300,
 
-  // Delay before Buddy's voice line plays after a SFX trigger (ms)
-  // Prevents voice from stomping on the leading edge of a beep/GO sound
+  // Delay before Buddy voice
   BUDDY_VOICE_DELAY_MS: 200,
 } as const;
 

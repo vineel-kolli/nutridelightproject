@@ -44,21 +44,7 @@ export const HelpPanel: React.FC<HelpPanelProps> = ({
         </h2>
 
         {/* Instructions */}
-        <div className="space-y-3 mb-6">
-          {[
-            { icon: '🖐', text: 'Show your hand in the camera frame' },
-            { icon: '⏱', text: 'Wait for the countdown: 1 → 2 → 3 → GO' },
-            { icon: '✊', text: 'Make your Rock, Paper, or Scissors move' },
-            { icon: '🏆', text: 'First to 2 wins takes the match!' },
-          ].map(({ icon, text }) => (
-            <div key={text} className="flex items-center gap-3">
-              <span className="text-2xl flex-shrink-0">{icon}</span>
-              <span className="text-sm" style={{ color: 'var(--text-dark)' }}>
-                {text}
-              </span>
-            </div>
-          ))}
-        </div>
+     
 
         {/* Voice commands */}
         {voiceSupported && (

@@ -20,7 +20,7 @@ import type { GamePhase, RpsMove } from '../game/gameTypes';
 /** Phases where we actively run inference */
 const ACTIVE_PHASES: GamePhase[] = [
   'waitingForStart',
-  'roundReady',
+  'gameReady',
   'countdown',
   'capture',
 ];

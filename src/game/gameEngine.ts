@@ -1,7 +1,10 @@
-import type { RpsMove, RoundOutcome } from './gameTypes';
+import type {
+  GameOutcome,
+  RpsMove,
+} from './gameTypes';
 
 // ============================================================
-// Pure game logic — deterministic, fully unit-testable
+// Pure RPS game logic
 // ============================================================
 
 const WIN_MAP: Record<RpsMove, RpsMove> = {
@@ -11,35 +14,44 @@ const WIN_MAP: Record<RpsMove, RpsMove> = {
 };
 
 /**
- * Determine the outcome of a single round.
- * Pure function — no side effects.
+ * Determines the outcome of ONE game.
+ *
+ * This function does not know:
+ * - how many games are in a match
+ * - the current score
+ * - prizes
+ * - UI
+ *
+ * It only determines the result of the two moves.
  */
 export function determineWinner(
   playerMove: RpsMove,
   buddyMove: RpsMove
-): RoundOutcome {
-  if (playerMove === buddyMove) return 'draw';
-  if (WIN_MAP[playerMove] === buddyMove) return 'playerWin';
+): GameOutcome {
+  if (playerMove === buddyMove) {
+    return 'draw';
+  }
+
+  if (WIN_MAP[playerMove] === buddyMove) {
+    return 'playerWin';
+  }
+
   return 'buddyWin';
 }
 
-const MOVES: RpsMove[] = ['rock', 'paper', 'scissors'];
+const MOVES: RpsMove[] = [
+  'rock',
+  'paper',
+  'scissors',
+];
 
 /**
- * Generate a random Buddy move.
- * Must be committed BEFORE the player's gesture is read.
+ * Generate Buddy's move.
+ *
+ * This is intentionally called before the capture window opens.
  */
 export function generateBuddyMove(): RpsMove {
-  return MOVES[Math.floor(Math.random() * MOVES.length)];
-}
-
-/**
- * Check whether a match is over given the current scores.
- */
-export function isMatchOver(
-  playerScore: number,
-  buddyScore: number,
-  winsToMatch: number
-): boolean {
-  return playerScore >= winsToMatch || buddyScore >= winsToMatch;
+  return MOVES[
+    Math.floor(Math.random() * MOVES.length)
+  ];
 }
