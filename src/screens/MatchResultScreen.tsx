@@ -7,6 +7,11 @@ interface MatchResultScreenProps {
   result: MatchResult;
   playerScore: number;
   buddyScore: number;
+  rewardEligible: boolean;
+  prizeName: string | null;
+  prizeImageUrl: string | null;
+  isLoading: boolean;
+  errorMessage: string | null;
   onPlayAgain: () => void;
   onExit: () => void;
 }
@@ -34,6 +39,7 @@ const RESULT_META: Record<
     background: 'linear-gradient(135deg, #fff8ec 0%, #ffe6c6 100%)',
     particleCount: 28,
   },
+
   playerWin: {
     title: 'YOU WIN!',
     image: '/avatar/buddy_loss.png',
@@ -44,6 +50,7 @@ const RESULT_META: Record<
     background: 'linear-gradient(135deg, #fffdf7 0%, #edf8ee 100%)',
     particleCount: 36,
   },
+
   draw: {
     title: 'MATCH DRAW!',
     image: '/avatar/buddy_idle.png',
@@ -60,10 +67,16 @@ export const MatchResultScreen: React.FC<MatchResultScreenProps> = ({
   result,
   playerScore,
   buddyScore,
+  rewardEligible,
+  prizeName,
+  prizeImageUrl,
+  isLoading,
+  errorMessage,
   onPlayAgain,
   onExit,
 }) => {
   const meta = RESULT_META[result];
+
   const announcement =
     result === 'draw'
       ? `Match complete. It is a draw at ${buddyScore} to ${playerScore}.`
@@ -78,64 +91,152 @@ export const MatchResultScreen: React.FC<MatchResultScreenProps> = ({
       role="status"
       aria-live="polite"
     >
-      <div className="result-speckle result-speckle-left" style={{ background: meta.accent }} />
-      <div className="result-speckle result-speckle-right" style={{ background: meta.accent }} />
+      <div
+        className="result-speckle result-speckle-left"
+        style={{ background: meta.accent }}
+      />
 
-      {meta.particleCount > 0 && <Confetti count={meta.particleCount} />}
+      <div
+        className="result-speckle result-speckle-right"
+        style={{ background: meta.accent }}
+      />
+
+      {meta.particleCount > 0 && (
+        <Confetti count={meta.particleCount} />
+      )}
 
       <main className="result-stage">
         <p className="sr-only">{announcement}</p>
 
         <div className="result-buddy-wrap">
           <div className="result-buddy-shadow" />
+
           <img
             src={meta.image}
             alt={meta.alt}
             className="result-buddy"
             draggable={false}
-            style={{ height: 'clamp(300px, 38vh, 460px)' }}
+            style={{
+              height: 'clamp(300px, 38vh, 460px)',
+            }}
           />
         </div>
 
-        <h1 className="result-heading" style={{ color: meta.color }}>
+        <h1
+          className="result-heading"
+          style={{ color: meta.color }}
+        >
           {meta.title}
         </h1>
 
-        <div className="result-score-card" style={{ borderColor: meta.accent }}>
-          <div className="result-score-label">FINAL SCORE</div>
+        <div
+          className="result-score-card"
+          style={{ borderColor: meta.accent }}
+        >
+          <div className="result-score-label">
+            FINAL SCORE
+          </div>
+
           <div className="result-score-grid">
             <div className="result-score-column">
-              <span className="result-score-tag">BUDDY</span>
-              <span className={`result-score-number ${result === 'buddyWin' ? 'is-winner' : ''}`}>
+              <span className="result-score-tag">
+                BUDDY
+              </span>
+
+              <span
+                className={`result-score-number ${
+                  result === 'buddyWin'
+                    ? 'is-winner'
+                    : ''
+                }`}
+              >
                 {buddyScore}
               </span>
             </div>
 
-            <div className="result-score-divider">—</div>
+            <div className="result-score-divider">
+              —
+            </div>
 
             <div className="result-score-column">
-              <span className="result-score-tag">YOU</span>
-              <span className={`result-score-number ${result === 'playerWin' ? 'is-winner' : ''}`}>
+              <span className="result-score-tag">
+                YOU
+              </span>
+
+              <span
+                className={`result-score-number ${
+                  result === 'playerWin'
+                    ? 'is-winner'
+                    : ''
+                }`}
+              >
                 {playerScore}
               </span>
             </div>
           </div>
         </div>
 
-        <p className="result-message">{meta.message}</p>
+        {rewardEligible && prizeName ? (
+          <section
+            className="result-reward-card"
+            aria-label="Reward"
+          >
+            <div className="result-reward-label">
+              YOUR REWARD
+            </div>
+
+            {prizeImageUrl && (
+              <img
+                src={prizeImageUrl}
+                alt=""
+                className="result-reward-image"
+                draggable={false}
+              />
+            )}
+
+            <div className="result-reward-name">
+              {prizeName}
+            </div>
+          </section>
+        ) : (
+          <p className="result-message">
+            {meta.message}
+          </p>
+        )}
 
         <button
           type="button"
           className="result-primary-btn"
           onClick={onPlayAgain}
-          id={result === 'playerWin' ? 'player-win-play-again-btn' : result === 'buddyWin' ? 'buddy-win-play-again-btn' : 'draw-play-again-btn'}
+          disabled={isLoading}
+          id={
+            result === 'playerWin'
+              ? 'player-win-play-again-btn'
+              : result === 'buddyWin'
+                ? 'buddy-win-play-again-btn'
+                : 'draw-play-again-btn'
+          }
         >
           PLAY AGAIN
         </button>
 
-        <button type="button" className="result-secondary-btn" onClick={onExit}>
+        <button
+          type="button"
+          className="result-secondary-btn"
+          onClick={onExit}
+          disabled={isLoading}
+        >
           EXIT GAME
         </button>
+
+        {errorMessage && (
+          <p
+            role="alert"
+            className="result-error"
+          >
+            {errorMessage}
+          </p>
+        )}
       </main>
     </div>
   );

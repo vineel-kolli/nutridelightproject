@@ -3,6 +3,10 @@ import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { MatchResultScreen } from '../screens/MatchResultScreen';
 import { GestureLab } from '../screens/GestureLab';
+import {
+  completeMatch,
+  type MatchCompletionResponse,
+} from '../api/matchApi';
 
 type AppScreen =
   | 'welcome'
@@ -11,42 +15,71 @@ type AppScreen =
   | 'buddyWin'
   | 'lab';
 
-/**
- * App shell — manages top-level screen transitions.
- * No router library needed for MVP.
- */
 export const App: React.FC = () => {
   const [screen, setScreen] = useState<AppScreen>(() => {
-    // Developer lab: /lab path or ?lab=true
     if (
       window.location.pathname === '/lab' ||
       new URLSearchParams(window.location.search).get('lab') === 'true'
     ) {
       return 'lab';
     }
+
     return 'welcome';
   });
 
-  const [matchSummary, setMatchSummary] = useState<{
-    result: 'playerWin' | 'buddyWin' | 'draw';
-    playerScore: number;
-    buddyScore: number;
-  } | null>(null);
+  const [matchSummary, setMatchSummary] =
+    useState<MatchCompletionResponse | null>(null);
 
-  const handleMatchComplete = (
-    result: 'playerWin' | 'buddyWin',
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [isCompletingMatch, setIsCompletingMatch] = useState(false);
+
+  const handleMatchComplete = async (
+    _result: 'playerWin' | 'buddyWin',
     playerScore: number,
     buddyScore: number
   ) => {
-    setMatchSummary({ result, playerScore, buddyScore });
-    setScreen(result === 'playerWin' ? 'playerWin' : 'buddyWin');
+    if (isCompletingMatch) {
+      return;
+    }
+
+    setIsCompletingMatch(true);
+    setCompletionError(null);
+
+    try {
+      const summary = await completeMatch({
+        player_wins: playerScore,
+        buddy_wins: buddyScore,
+      });
+
+      setMatchSummary(summary);
+
+      setScreen(
+        summary.winner === 'player'
+          ? 'playerWin'
+          : 'buddyWin'
+      );
+    } catch (error) {
+      console.error('Failed to complete match:', error);
+
+      setCompletionError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to complete the match.'
+      );
+    } finally {
+      setIsCompletingMatch(false);
+    }
   };
 
   const handlePlayAgain = () => {
+    setCompletionError(null);
+    setMatchSummary(null);
     setScreen('game');
   };
 
   const handleExit = () => {
+    setCompletionError(null);
+    setMatchSummary(null);
     setScreen('welcome');
   };
 
@@ -71,24 +104,96 @@ export const App: React.FC = () => {
         />
       )}
 
-      {screen === 'playerWin' && matchSummary && (
-        <MatchResultScreen
-          result={matchSummary.result}
-          playerScore={matchSummary.playerScore}
-          buddyScore={matchSummary.buddyScore}
-          onPlayAgain={handlePlayAgain}
-          onExit={handleExit}
-        />
+      {(screen === 'playerWin' || screen === 'buddyWin') &&
+        matchSummary && (
+          <MatchResultScreen
+            result={
+              matchSummary.winner === 'player'
+                ? 'playerWin'
+                : 'buddyWin'
+            }
+            playerScore={matchSummary.player_wins}
+            buddyScore={matchSummary.buddy_wins}
+            rewardEligible={matchSummary.reward_eligible}
+            prizeName={matchSummary.prize_name}
+            prizeImageUrl={matchSummary.prize_image_url}
+            isLoading={isCompletingMatch}
+            errorMessage={completionError}
+            onPlayAgain={handlePlayAgain}
+            onExit={handleExit}
+          />
+        )}
+
+      {screen === 'game' && isCompletingMatch && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'rgba(0, 0, 0, 0.55)',
+          }}
+        >
+          <div
+            style={{
+              padding: '24px 32px',
+              borderRadius: '16px',
+              background: '#fff',
+              textAlign: 'center',
+            }}
+          >
+            <strong>Finishing your game…</strong>
+          </div>
+        </div>
       )}
 
-      {screen === 'buddyWin' && matchSummary && (
-        <MatchResultScreen
-          result={matchSummary.result}
-          playerScore={matchSummary.playerScore}
-          buddyScore={matchSummary.buddyScore}
-          onPlayAgain={handlePlayAgain}
-          onExit={handleExit}
-        />
+      {screen === 'game' && completionError && !isCompletingMatch && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1001,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'rgba(0, 0, 0, 0.55)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '420px',
+              margin: '20px',
+              padding: '28px',
+              borderRadius: '16px',
+              background: '#fff',
+              textAlign: 'center',
+            }}
+          >
+            <h2>Unable to finish the game</h2>
+
+            <p>{completionError}</p>
+
+            <button
+              type="button"
+              onClick={() => {
+                setCompletionError(null);
+                setScreen('game');
+              }}
+            >
+              TRY AGAIN
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExit}
+            >
+              EXIT GAME
+            </button>
+          </div>
+        </div>
       )}
 
       {screen === 'lab' && (
