@@ -19,6 +19,7 @@ const API_BASE_URL =
 export async function completeMatch(
   request: MatchCompletionRequest
 ): Promise<MatchCompletionResponse> {
+  console.log('MATCH REQUEST:', request);
   const response = await fetch(
     `${API_BASE_URL}/api/v1/match/complete`,
     {

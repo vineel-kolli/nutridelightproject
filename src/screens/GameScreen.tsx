@@ -1,7 +1,8 @@
-import React, { useReducer, useEffect, useRef, useCallback } from 'react';
+import React, { useReducer, useEffect, useRef, useCallback,useState, } from 'react';
 import { gameReducer, INITIAL_STATE } from '../game/gameReducer';
 import { generateBuddyMove } from '../game/gameEngine';
 import { GAME_CONFIG } from '../game/gameConfig';
+import { getGameConfig } from '../admin/api/adminApi';
 import { useCamera } from '../camera/useCamera';
 import { useGestureDetection } from '../gesture/useGestureDetection';
 import { AudioManager } from '../audio/AudioManager';
@@ -93,6 +94,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   onBack,
 }) => {
   const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
+  const [configuredTotalGames, setConfiguredTotalGames] =
+    useState<number | null>(null);
+
+  const [isLoadingGameConfig, setIsLoadingGameConfig] =
+    useState(true);
+  const [gameConfigError, setGameConfigError] =
+    useState<string | null>(null);
   const {
     videoRef,
     errorMessage: cameraError,
@@ -118,6 +126,45 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       cameraStartAttemptRef.current = false;
     };
   }, [stopCamera]);
+    // ─── Load active game configuration ───
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadGameConfig = async () => {
+      setIsLoadingGameConfig(true);
+      setGameConfigError(null);
+
+      try {
+        const config = await getGameConfig();
+
+        if (cancelled) {
+          return;
+        }
+
+        setConfiguredTotalGames(config.total_games);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setGameConfigError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to load game configuration.',
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingGameConfig(false);
+        }
+      }
+    };
+
+    void loadGameConfig();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (state.phase !== 'cameraSetup') {
@@ -222,9 +269,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       case 'matchIntro': {
         AudioManager.play('welcome');
         AudioManager.playVoice('buddyGreet');
+
         timerRef.current = setTimeout(() => {
-          dispatch({ type: 'MATCH_INTRO_DONE' });
+          dispatch({
+            type: 'MATCH_INTRO_DONE',
+            payload: {
+              totalGames:
+                configuredTotalGames ??
+                GAME_CONFIG.DEFAULT_TOTAL_GAMES,
+            },
+          });
         }, GAME_CONFIG.MATCH_INTRO_MS);
+
         break;
       }
 
@@ -325,7 +381,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       clearInterval(countdownTickRef.current!);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase]);
+  }, [state.phase,configuredTotalGames]);
 
   // ─── Derived UI values ───
   const buddyAvatarState = resolveBuddyState(
@@ -458,17 +514,36 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
       {/* Overlays */}
       {state.phase === 'waitingForStart' && (
-        <button
-          className="kiosk-start-button"
-          onClick={() => {
-            AudioManager.preload();
-            dispatch({ type: 'START_MATCH' });
-          }}
-          id="game-start-match-btn"
-        >
-          START GAME
-        </button>
-      )}
+  <>
+        {isLoadingGameConfig ? (
+          <div className="kiosk-config-loading">
+            Loading game settings…
+          </div>
+        ) : gameConfigError ? (
+          <div className="kiosk-config-error">
+            <div>{gameConfigError}</div>
+
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+            >
+              TRY AGAIN
+            </button>
+          </div>
+        ) : (
+          <button
+            className="kiosk-start-button"
+            onClick={() => {
+              AudioManager.preload();
+              dispatch({ type: 'START_MATCH' });
+            }}
+            id="game-start-match-btn"
+          >
+            START GAME
+          </button>
+        )}
+  </>
+)}
 
       {state.phase === 'matchIntro' && (
         <div className="kiosk-intro-overlay">

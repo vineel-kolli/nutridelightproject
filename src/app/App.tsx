@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import { WelcomeScreen } from '../screens/WelcomeScreen';
 import { GameScreen } from '../screens/GameScreen';
 import { MatchResultScreen } from '../screens/MatchResultScreen';
 import { GestureLab } from '../screens/GestureLab';
+
 import {
   completeMatch,
   type MatchCompletionResponse,
 } from '../api/matchApi';
+
+import { AdminLoginScreen } from '../admin/screens/AdminLoginScreen';
+import { AdminDashboardScreen } from '../admin/screens/AdminDashboardScreen';
+import {
+  getCurrentAdmin,
+  type AdminUser,
+} from '../admin/api/adminApi';
 
 type AppScreen =
   | 'welcome'
@@ -15,10 +24,21 @@ type AppScreen =
   | 'buddyWin'
   | 'lab';
 
+const getPath = () => window.location.pathname;
+
 export const App: React.FC = () => {
+  const initialPath = getPath();
+
+  const isAdminRoute =
+    initialPath === '/admin' ||
+    initialPath === '/admin/';
+
+  const isAdminLoginRoute =
+    initialPath === '/admin/login';
+
   const [screen, setScreen] = useState<AppScreen>(() => {
     if (
-      window.location.pathname === '/lab' ||
+      initialPath === '/lab' ||
       new URLSearchParams(window.location.search).get('lab') === 'true'
     ) {
       return 'lab';
@@ -27,49 +47,130 @@ export const App: React.FC = () => {
     return 'welcome';
   });
 
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(
+    isAdminRoute || isAdminLoginRoute,
+  );
+
   const [matchSummary, setMatchSummary] =
     useState<MatchCompletionResponse | null>(null);
 
-  const [completionError, setCompletionError] = useState<string | null>(null);
-  const [isCompletingMatch, setIsCompletingMatch] = useState(false);
+  const [completionError, setCompletionError] =
+    useState<string | null>(null);
 
-  const handleMatchComplete = async (
-    _result: 'playerWin' | 'buddyWin',
-    playerScore: number,
-    buddyScore: number
-  ) => {
-    if (isCompletingMatch) {
+  const [isCompletingMatch, setIsCompletingMatch] =
+    useState(false);
+
+  /*
+   * Admin session check.
+   *
+   * The browser never receives or stores the session token.
+   * The backend manages the HttpOnly session cookie.
+   */
+  useEffect(() => {
+    if (!isAdminRoute && !isAdminLoginRoute) {
+      setIsCheckingAdmin(false);
       return;
     }
 
-    setIsCompletingMatch(true);
-    setCompletionError(null);
+    let cancelled = false;
 
-    try {
-      const summary = await completeMatch({
-        player_wins: playerScore,
-        buddy_wins: buddyScore,
+    getCurrentAdmin()
+      .then((admin) => {
+        if (cancelled) {
+          return;
+        }
+
+        setAdminUser(admin);
+
+        /*
+         * If an already-authenticated admin visits /admin/login,
+         * send them to the dashboard.
+         */
+        if (isAdminLoginRoute) {
+          window.history.replaceState({}, '', '/admin');
+        }
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setAdminUser(null);
+
+        /*
+         * /admin requires authentication.
+         */
+        if (isAdminRoute) {
+          window.history.replaceState({}, '', '/admin/login');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsCheckingAdmin(false);
+        }
       });
 
-      setMatchSummary(summary);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdminRoute, isAdminLoginRoute]);
 
-      setScreen(
-        summary.winner === 'player'
-          ? 'playerWin'
-          : 'buddyWin'
-      );
-    } catch (error) {
-      console.error('Failed to complete match:', error);
+  const handleAdminLogin = (admin: AdminUser) => {
+    setAdminUser(admin);
 
-      setCompletionError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to complete the match.'
-      );
-    } finally {
-      setIsCompletingMatch(false);
-    }
+    window.history.replaceState({}, '', '/admin');
   };
+
+  const handleAdminLogout = () => {
+    setAdminUser(null);
+
+    window.history.replaceState({}, '', '/admin/login');
+  };
+
+  const handleMatchComplete = async (
+  _result: 'playerWin' | 'buddyWin',
+  playerScore: number,
+  buddyScore: number,
+) => {
+  if (isCompletingMatch) {
+    return;
+  }
+
+  console.log('FINAL MATCH SCORE:', {
+    playerScore,
+    buddyScore,
+    total: playerScore + buddyScore,
+  });
+
+  setIsCompletingMatch(true);
+  setCompletionError(null);
+
+  try {
+    const summary = await completeMatch({
+      player_wins: playerScore,
+      buddy_wins: buddyScore,
+    });
+
+    setMatchSummary(summary);
+
+    setScreen(
+      summary.winner === 'player'
+        ? 'playerWin'
+        : 'buddyWin',
+    );
+  } catch (error) {
+    console.error('Failed to complete match:', error);
+
+    setCompletionError(
+      error instanceof Error
+        ? error.message
+        : 'Unable to complete the match.',
+    );
+  } finally {
+    setIsCompletingMatch(false);
+  }
+};
 
   const handlePlayAgain = () => {
     setCompletionError(null);
@@ -83,6 +184,78 @@ export const App: React.FC = () => {
     setScreen('welcome');
   };
 
+  /*
+   * ------------------------------------------------------------
+   * ADMIN ROUTES
+   * ------------------------------------------------------------
+   *
+   * Admin is intentionally kept outside the kiosk screen state.
+   * This prevents admin navigation from becoming part of the game
+   * state machine.
+   */
+
+  if (isAdminRoute || isAdminLoginRoute) {
+    if (isCheckingAdmin) {
+      return (
+        <div
+          style={{
+            width: '100vw',
+            height: '100vh',
+            display: 'grid',
+            placeItems: 'center',
+            background: '#f5f5f5',
+          }}
+        >
+          <p>Checking session…</p>
+        </div>
+      );
+    }
+
+    /*
+     * /admin/login
+     */
+    if (isAdminLoginRoute) {
+      if (adminUser) {
+        return (
+          <AdminDashboardScreen
+            admin={adminUser}
+            onLogout={handleAdminLogout}
+          />
+        );
+      }
+
+      return (
+        <AdminLoginScreen
+          onLoginSuccess={handleAdminLogin}
+        />
+      );
+    }
+
+    /*
+     * /admin
+     */
+    if (!adminUser) {
+      return (
+        <AdminLoginScreen
+          onLoginSuccess={handleAdminLogin}
+        />
+      );
+    }
+
+    return (
+      <AdminDashboardScreen
+        admin={adminUser}
+        onLogout={handleAdminLogout}
+      />
+    );
+  }
+
+  /*
+   * ------------------------------------------------------------
+   * KIOSK APPLICATION
+   * ------------------------------------------------------------
+   */
+
   return (
     <div
       style={{
@@ -94,7 +267,9 @@ export const App: React.FC = () => {
       }}
     >
       {screen === 'welcome' && (
-        <WelcomeScreen onStart={() => setScreen('game')} />
+        <WelcomeScreen
+          onStart={() => setScreen('game')}
+        />
       )}
 
       {screen === 'game' && (
@@ -145,59 +320,69 @@ export const App: React.FC = () => {
               textAlign: 'center',
             }}
           >
-            <strong>Finishing your game…</strong>
+            <strong>
+              Finishing your game…
+            </strong>
           </div>
         </div>
       )}
 
-      {screen === 'game' && completionError && !isCompletingMatch && (
-        <div
-          role="alert"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1001,
-            display: 'grid',
-            placeItems: 'center',
-            background: 'rgba(0, 0, 0, 0.55)',
-          }}
-        >
+      {screen === 'game' &&
+        completionError &&
+        !isCompletingMatch && (
           <div
+            role="alert"
             style={{
-              maxWidth: '420px',
-              margin: '20px',
-              padding: '28px',
-              borderRadius: '16px',
-              background: '#fff',
-              textAlign: 'center',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1001,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'rgba(0, 0, 0, 0.55)',
             }}
           >
-            <h2>Unable to finish the game</h2>
-
-            <p>{completionError}</p>
-
-            <button
-              type="button"
-              onClick={() => {
-                setCompletionError(null);
-                setScreen('game');
+            <div
+              style={{
+                maxWidth: '420px',
+                margin: '20px',
+                padding: '28px',
+                borderRadius: '16px',
+                background: '#fff',
+                textAlign: 'center',
               }}
             >
-              TRY AGAIN
-            </button>
+              <h2>
+                Unable to finish the game
+              </h2>
 
-            <button
-              type="button"
-              onClick={handleExit}
-            >
-              EXIT GAME
-            </button>
+              <p>
+                {completionError}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCompletionError(null);
+                  setScreen('game');
+                }}
+              >
+                TRY AGAIN
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExit}
+              >
+                EXIT GAME
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {screen === 'lab' && (
-        <GestureLab onExit={() => setScreen('welcome')} />
+        <GestureLab
+          onExit={() => setScreen('welcome')}
+        />
       )}
     </div>
   );
