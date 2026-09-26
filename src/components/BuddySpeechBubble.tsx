@@ -6,8 +6,8 @@ import type {
 
 export function resolveBuddySpeechMessage(
   phase: string,
-  buddyMove: RpsMove | null,
-  gameOutcome: GameOutcome | null,
+  _buddyMove: RpsMove | null,
+  _gameOutcome: GameOutcome | null,
   gestureKind: string | null,
   detectionPrompt: string | null
 ): string {
@@ -32,52 +32,15 @@ export function resolveBuddySpeechMessage(
   }
 
   if (phase === 'capture') {
-    if (gestureKind === 'noHand') {
-      return "I can't see your hand yet";
-    }
-
-    if (gestureKind === 'moving') {
+    if (gestureKind === 'moving' || detectionPrompt?.includes('Hold') || detectionPrompt?.includes('steady')) {
       return 'Hold it steady!';
     }
 
-    if (
-      detectionPrompt?.includes(
-        'Show your move'
-      )
-    ) {
-      return 'Show me your move!';
-    }
-
-    return 'My turn is coming...';
+    return 'Show me your move!';
   }
 
-  if (
-    phase === 'reveal' ||
-    phase === 'gameResult'
-  ) {
-    if (buddyMove === 'rock') {
-      return 'Rock!';
-    }
-
-    if (buddyMove === 'paper') {
-      return 'Paper!';
-    }
-
-    if (buddyMove === 'scissors') {
-      return 'Scissors!';
-    }
-
-    if (gameOutcome === 'playerWin') {
-      return 'Nice move!';
-    }
-
-    if (gameOutcome === 'buddyWin') {
-      return 'Yes! This game is mine!';
-    }
-
-    if (gameOutcome === 'draw') {
-      return 'Same move! Again?';
-    }
+  if (phase === 'reveal' || phase === 'gameResult') {
+    return '';
   }
 
   if (phase === 'matchResult') {

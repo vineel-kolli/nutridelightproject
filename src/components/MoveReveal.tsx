@@ -40,116 +40,70 @@ export const MoveReveal: React.FC<MoveRevealProps> = ({
 
   const resultText =
     outcome === 'playerWin'
-      ? 'YOU WIN THIS GAME! 🎉'
+      ? 'YOU WIN THIS GAME!'
       : outcome === 'buddyWin'
-        ? 'BUDDY WINS THIS GAME! 💪'
-        : "IT'S A DRAW — PLAY AGAIN!";
+        ? 'BUDDY WINS THIS GAME!'
+        : "IT'S A DRAW!";
 
-  const resultBg =
+  const outcomeClass =
     outcome === 'playerWin'
-      ? 'rgba(45,138,62,0.95)'
+      ? 'outcome-player-win'
       : outcome === 'buddyWin'
-        ? 'rgba(232,123,26,0.95)'
-        : 'rgba(60,60,60,0.95)';
+        ? 'outcome-buddy-win'
+        : 'outcome-draw';
 
   return (
     <div
-      className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 pointer-events-none"
-      style={{
-        background: 'rgba(0,0,0,0.35)',
-        backdropFilter: 'blur(2px)',
-      }}
+      className={`round-result-overlay ${outcomeClass}`}
+      role="alert"
+      aria-live="assertive"
     >
-      <div className="flex items-center gap-4 animate-fade-in">
-
-        <div
-          className="move-card move-card-player animate-slide-in-left"
-          style={{ minWidth: 110 }}
-        >
-          <span className="text-[10px] font-bold tracking-widest uppercase opacity-80">
-            YOU
-          </span>
-
-          <span
-            style={{
-              fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-            }}
-          >
-            {MOVE_EMOJI[playerMove]}
-          </span>
-
-          <span
-            className="font-black tracking-wide"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize:
-                'clamp(0.75rem, 2.5vw, 1rem)',
-            }}
-          >
-            {MOVE_LABEL[playerMove]}
-          </span>
+      <div className="round-result-container animate-bounce-in">
+        {/* SUBTLE BRAND STAMP */}
+        <div className="round-result-brand">
+          <img
+            src="/favicon.png"
+            alt=""
+            className="round-result-brand-icon"
+            aria-hidden="true"
+          />
+          <span>NUTRI DELIGHT</span>
         </div>
 
-        <div
-          className="font-black"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize:
-              'clamp(1.2rem, 4vw, 2rem)',
-            color: 'white',
-            textShadow:
-              '0 2px 8px rgba(0,0,0,0.5)',
-          }}
-        >
-          VS
+        {/* MOVE SHOWDOWN */}
+        <div className="round-result-moves">
+          {/* PLAYER MOVE CARD */}
+          <div className="result-move-card card-player animate-slide-in-left">
+            <span className="result-move-header">YOU</span>
+            <span className="result-move-emoji" aria-hidden="true">
+              {MOVE_EMOJI[playerMove]}
+            </span>
+            <span className="result-move-name">
+              {MOVE_LABEL[playerMove]}
+            </span>
+          </div>
+
+          {/* VS CIRCLE */}
+          <div className="result-vs-circle" aria-hidden="true">
+            <span>VS</span>
+          </div>
+
+          {/* BUDDY MOVE CARD */}
+          <div className="result-move-card card-buddy animate-slide-in-right">
+            <span className="result-move-header">BUDDY</span>
+            <span className="result-move-emoji" aria-hidden="true">
+              {MOVE_EMOJI[buddyMove]}
+            </span>
+            <span className="result-move-name">
+              {MOVE_LABEL[buddyMove]}
+            </span>
+          </div>
         </div>
 
-        <div
-          className="move-card move-card-buddy animate-slide-in-right"
-          style={{ minWidth: 110 }}
-        >
-          <span className="text-[10px] font-bold tracking-widest uppercase opacity-80">
-            BUDDY
-          </span>
-
-          <span
-            style={{
-              fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-            }}
-          >
-            {MOVE_EMOJI[buddyMove]}
-          </span>
-
-          <span
-            className="font-black tracking-wide"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize:
-                'clamp(0.75rem, 2.5vw, 1rem)',
-            }}
-          >
-            {MOVE_LABEL[buddyMove]}
-          </span>
+        {/* OUTCOME BANNER */}
+        <div className="round-result-banner animate-fade-in">
+          <span>{resultText}</span>
         </div>
-      </div>
-
-      <div
-        className="animate-bounce-in px-6 py-4 rounded-2xl"
-        style={{
-          background: resultBg,
-          fontFamily: 'var(--font-display)',
-          fontSize:
-            'clamp(1rem, 3.5vw, 1.5rem)',
-          fontWeight: 900,
-          color: 'white',
-          letterSpacing: '0.04em',
-          textShadow:
-            '0 2px 8px rgba(0,0,0,0.3)',
-          boxShadow:
-            '0 8px 32px rgba(0,0,0,0.3)',
-        }}
-      >
-        {resultText}
       </div>
     </div>
   );

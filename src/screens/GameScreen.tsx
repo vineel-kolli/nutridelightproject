@@ -13,7 +13,7 @@ import { CountdownOverlay } from '../components/CountdownOverlay';
 import { MoveReveal } from '../components/MoveReveal';
 import { BuddyAvatar } from '../components/BuddyAvatar';
 import { CameraError } from '../components/CameraError';
-import type { AvatarState } from '../avatar/avatarTypes';
+import { getBuddyBehavior } from '../avatar/buddyBehavior';
 import type { RpsMove } from '../game/gameTypes';
 
 interface GameScreenProps {
@@ -29,61 +29,7 @@ interface GameScreenProps {
 // Map game phase → Buddy avatar state
 // ============================================================
 
-function resolveBuddyState(
-  phase: string,
-  buddyMove: RpsMove | null,
-  gameOutcome: string | null,
-  matchResult: string | null
-): AvatarState {
-  if (matchResult === 'playerWin') {
-    return 'matchWin';
-  }
 
-  if (matchResult === 'buddyWin') {
-    return 'matchLoss';
-  }
-
-  if (
-    phase === 'reveal' ||
-    phase === 'gameResult'
-  ) {
-    if (buddyMove) {
-      return buddyMove as AvatarState;
-    }
-
-    if (gameOutcome === 'playerWin') {
-      return 'roundWin';
-    }
-
-    if (gameOutcome === 'buddyWin') {
-      return 'roundLoss';
-    }
-
-    if (gameOutcome === 'draw') {
-      return 'draw';
-    }
-  }
-
-  if (
-    phase === 'countdown' ||
-    phase === 'capture'
-  ) {
-    return 'countdown';
-  }
-
-  if (phase === 'waitingForStart') {
-    return 'listening';
-  }
-
-  if (
-    phase === 'gameReady' ||
-    phase === 'matchIntro'
-  ) {
-    return 'ready';
-  }
-
-  return 'idle';
-}
 
 // ============================================================
 // GameScreen — the camera-first game experience
@@ -384,12 +330,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   }, [state.phase,configuredTotalGames]);
 
   // ─── Derived UI values ───
-  const buddyAvatarState = resolveBuddyState(
-    state.phase,
-    state.buddyMove,
-    state.gameOutcome,
-    state.matchResult
-  );
+  
 
   const showHUD = [
     'countdown', 'capture', 'reveal', 'gameResult', 'gameReady',
@@ -401,20 +342,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   const showReveal =
     state.phase === 'reveal' || state.phase === 'gameResult';
 
-  
-
-  const buddyMoveAsset =
-    state.buddyMove === 'rock'
-      ? '/avatar/buddy_rock.png'
-      : state.buddyMove === 'paper'
-        ? '/avatar/buddy_paper.png'
-        : state.buddyMove === 'scissors'
-          ? '/avatar/buddy_scissors.png'
-          : null;
-
-  const showBuddyMoveVisual =
-    (state.phase === 'reveal' || state.phase === 'gameResult') &&
-    !!buddyMoveAsset;
+  const buddyBehavior = getBuddyBehavior({
+  phase: state.phase,
+  buddyMove: state.buddyMove,
+  gameOutcome: state.gameOutcome,
+  matchResult: state.matchResult,
+  detectionPrompt: state.detectionPrompt,
+});
 
   // ─── Camera error state ───
   if (state.phase === 'error') {
@@ -431,147 +365,180 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   }
 
   return (
-    <div className="screen-container portrait-kiosk">
-      <header className="kiosk-header">
-        <div className="kiosk-header-logo">
-          <img src="/favicon.svg" alt="Nutri Delight" />
-        </div>
-        <div className="kiosk-header-title">
-          ROCK <span>•</span> PAPER <span>•</span> SCISSORS
-        </div>
-        <button className="kiosk-exit" onClick={onBack} aria-label="Exit game">
-          EXIT
-        </button>
-      </header>
+  <div className="screen-container portrait-kiosk">
 
-      {/* Main Content Area */}
-      <main className="kiosk-main-content">
-        {/* Score HUD at top */}
-        {showHUD && (
-          <div className="kiosk-score-wrapper">
-            <ScoreHUD
-              playerScore={state.playerScore}
-              buddyScore={state.buddyScore}
-              currentGame={state.currentGame}
-              totalGames={state.totalGames}
-            />
+    {/* ========================================================
+        HEADER
+        ======================================================== */}
+    <header className="kiosk-header">
+      <div className="kiosk-header-logo">
+        <img
+          src="/favicon.png"
+          alt="Nutri Delight"
+        />
+      </div>
+
+      <div className="kiosk-header-title">
+        <svg className="header-leaf-icon leaf-green" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 4.25S2 11.5 2 11.5s5-1.5 9-2.5 6-.5 6-.5z" />
+        </svg>
+        <span>ROCK</span>
+        <b>•</b>
+        <span>PAPER</span>
+        <b>•</b>
+        <span>SCISSORS</span>
+        <svg className="header-leaf-icon leaf-orange" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 4.25S2 11.5 2 11.5s5-1.5 9-2.5 6-.5 6-.5z" />
+        </svg>
+      </div>
+
+      <button
+        className="kiosk-exit"
+        onClick={onBack}
+        aria-label="Exit game"
+      >
+        EXIT
+      </button>
+    </header>
+
+    {/* ========================================================
+        SINGLE GAME ARENA
+        Player + Buddy exist in the SAME space.
+        ======================================================== */}
+    <main className="game-arena">
+
+      {/* LIVE CAMERA */}
+      <div className="arena-camera">
+        <CameraView videoRef={videoRef} />
+
+        <HandLandmarkOverlay
+          canvasRef={landmarkCanvasRef}
+        />
+
+        {/* Camera darkening for HUD readability */}
+        <div className="arena-top-gradient" />
+        <div className="arena-bottom-gradient" />
+
+        {/* Camera detection corners */}
+        <div className="camera-bracket bracket-tl" />
+        <div className="camera-bracket bracket-tr" />
+        <div className="camera-bracket bracket-bl" />
+        <div className="camera-bracket bracket-br" />
+
+        {gestureStatus?.kind === 'stable' && (
+          <div className="hand-detected-indicator">
+            <span className="dot" />
+            HAND DETECTED
           </div>
         )}
 
-        {/* Camera Area */}
-        <section className="kiosk-camera-section">
-          <div className="camera-container-box">
-            {/* Corner brackets */}
-            <div className="camera-bracket bracket-tl" />
-            <div className="camera-bracket bracket-tr" />
-            <div className="camera-bracket bracket-bl" />
-            <div className="camera-bracket bracket-br" />
+        {/* COUNTDOWN */}
+        {showCountdown && (
+          <CountdownOverlay
+            value={state.countdownValue}
+          />
+        )}
 
-            {/* Hand Detected Indicator */}
-            {gestureStatus?.kind === 'stable' && (
-              <div className="hand-detected-indicator">
-                <span className="dot"></span> HAND DETECTED
-              </div>
-            )}
+        {/* MOVE REVEAL */}
+        <MoveReveal
+          playerMove={state.playerMove}
+          buddyMove={state.buddyMove}
+          outcome={state.gameOutcome}
+          visible={showReveal}
+        />
+      </div>
 
-            <div className="player-camera">
-              <CameraView videoRef={videoRef} />
-              <HandLandmarkOverlay canvasRef={landmarkCanvasRef} />
-              {showCountdown && <CountdownOverlay value={state.countdownValue} />}
-              <MoveReveal
-                playerMove={state.playerMove}
-                buddyMove={state.buddyMove}
-                outcome={state.gameOutcome}
-                visible={showReveal}
-              />
-            </div>
-          </div>
-        </section>
-      </main>
+      {/* ======================================================
+          TOP HUD
+          ====================================================== */}
+      {showHUD && (
+        <div className="arena-score-layer">
+          <ScoreHUD
+            playerScore={state.playerScore}
+            buddyScore={state.buddyScore}
+            currentGame={state.currentGame}
+            totalGames={state.totalGames}
+          />
+        </div>
+      )}
 
-      {/* Buddy Area */}
-      <section className="kiosk-buddy-section">
-        {/* Buddy Speech Bubble */}
-        <div className="buddy-speech-bubble">
-          <span>I'm ready!</span><br />
-          <strong>Beat me<br />if you can! 💪</strong>
+      {/* ======================================================
+          BUDDY
+          ====================================================== */}
+      <div className="buddy-arena">
+        {/* Soft golden stage glow behind Buddy */}
+        <div className="buddy-stage-glow" aria-hidden="true" />
+
+        {/* Grounding floor spotlight */}
+        <div className="buddy-ground" aria-hidden="true" />
+
+        {/* Ambient brand leaves floating in the foreground */}
+        <div className="arena-ambient-leaves" aria-hidden="true">
+          <span className="leaf-particle leaf-p1" />
+          <span className="leaf-particle leaf-p2" />
+          <span className="leaf-particle leaf-p3" />
+          <span className="leaf-particle leaf-p4" />
         </div>
 
-        {/* Mascot */}
-        <div className="buddy-mascot-container">
-          {showBuddyMoveVisual ? (
-            <img className="buddy-avatar" src={buddyMoveAsset!} alt="Buddy Move" />
+        <BuddyAvatar
+          state={buddyBehavior.state}
+          message={buddyBehavior.message || null}
+        />
+      </div>
+
+      {/* ======================================================
+          START GAME
+          ====================================================== */}
+      {state.phase === 'waitingForStart' && (
+        <div className="arena-start-layer">
+          {isLoadingGameConfig ? (
+            <div className="kiosk-config-loading">
+              Loading game settings…
+            </div>
+          ) : gameConfigError ? (
+            <div className="kiosk-config-error">
+              <div>{gameConfigError}</div>
+
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+              >
+                TRY AGAIN
+              </button>
+            </div>
           ) : (
-            <BuddyAvatar state={buddyAvatarState} />
+            <button
+              className="kiosk-start-button"
+              onClick={() => {
+                AudioManager.preload();
+                dispatch({ type: 'START_MATCH' });
+              }}
+              id="game-start-match-btn"
+            >
+              START GAME
+            </button>
           )}
         </div>
+      )}
 
-        {/* Background text graphic */}
-        <div className="buddy-bg-text">
-          BUDDY<br /><span>BEAT ME!</span>
-        </div>
-      </section>
-
-      {/* Overlays */}
-      {state.phase === 'waitingForStart' && (
-  <>
-        {isLoadingGameConfig ? (
-          <div className="kiosk-config-loading">
-            Loading game settings…
-          </div>
-        ) : gameConfigError ? (
-          <div className="kiosk-config-error">
-            <div>{gameConfigError}</div>
-
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-            >
-              TRY AGAIN
-            </button>
-          </div>
-        ) : (
-          <button
-            className="kiosk-start-button"
-            onClick={() => {
-              AudioManager.preload();
-              dispatch({ type: 'START_MATCH' });
-            }}
-            id="game-start-match-btn"
-          >
-            START GAME
-          </button>
-        )}
-  </>
-)}
-
+      {/* ======================================================
+          MATCH INTRO
+          ====================================================== */}
       {state.phase === 'matchIntro' && (
         <div className="kiosk-intro-overlay">
           <div className="animate-bounce-in kiosk-intro-card">
-            <div>PLAY {state.totalGames} GAMES!</div>
-            <div>WINS! 🏆</div>
+            <div>
+              PLAY {state.totalGames} GAMES!
+            </div>
+
+            <div>
+              LET'S GO!
+            </div>
           </div>
         </div>
       )}
 
-      {/* {import.meta.env.DEV && debugInfo && (
-       <div
-          className="absolute top-20 left-2 z-50 text-xs font-mono p-2 rounded"
-          style={{
-            background: 'rgba(0,0,0,0.7)',
-            color: '#0f0',
-            maxWidth: 200,
-          }}
-        >
-          <div>phase: {state.phase}</div>
-          <div>label: {debugInfo.label}</div>
-          <div>conf: {(debugInfo.confidence * 100).toFixed(0)}%</div>
-          <div>vote: {(debugInfo.voteRatio * 100).toFixed(0)}%</div>
-          <div>consec: {debugInfo.consecutiveCount}</div>
-          <div>motion: {debugInfo.motion.toFixed(3)}</div>
-          <div>status: {debugInfo.status.kind}</div>
-        </div>
-      )}*/}
-    </div>
- );
+    </main>
+  </div>
+);
 };

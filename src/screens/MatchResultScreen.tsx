@@ -138,39 +138,34 @@ export const MatchResultScreen: React.FC<MatchResultScreenProps> = ({
           </div>
 
           <div className="result-score-grid">
-            <div className="result-score-column">
-              <span className="result-score-tag">
-                BUDDY
-              </span>
+            {/* YOU — always left */}
+            <div
+              className={`result-score-column result-score-player ${
+                result === 'playerWin' ? 'is-match-winner' : ''
+              }`}
+            >
+              <span className="result-score-tag">YOU</span>
 
-              <span
-                className={`result-score-number ${
-                  result === 'buddyWin'
-                    ? 'is-winner'
-                    : ''
-                }`}
-              >
-                {buddyScore}
-              </span>
-            </div>
-
-            <div className="result-score-divider">
-              —
-            </div>
-
-            <div className="result-score-column">
-              <span className="result-score-tag">
-                YOU
-              </span>
-
-              <span
-                className={`result-score-number ${
-                  result === 'playerWin'
-                    ? 'is-winner'
-                    : ''
-                }`}
-              >
+              <span className="result-score-number">
                 {playerScore}
+              </span>
+            </div>
+
+            {/* VS — always center */}
+            <div className="result-score-divider">
+              VS
+            </div>
+
+            {/* BUDDY — always right */}
+            <div
+              className={`result-score-column result-score-buddy ${
+                result === 'buddyWin' ? 'is-match-winner' : ''
+              }`}
+            >
+              <span className="result-score-tag">BUDDY</span>
+
+              <span className="result-score-number">
+                {buddyScore}
               </span>
             </div>
           </div>
