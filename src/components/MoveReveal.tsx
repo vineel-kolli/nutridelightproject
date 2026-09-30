@@ -4,17 +4,12 @@ import type {
   RpsMove,
 } from '../game/gameTypes';
 
-const MOVE_EMOJI: Record<RpsMove, string> = {
-  rock: '✊',
-  paper: '✋',
-  scissors: '✌️',
-};
-
 const MOVE_LABEL: Record<RpsMove, string> = {
   rock: 'ROCK',
   paper: 'PAPER',
   scissors: 'SCISSORS',
 };
+
 
 interface MoveRevealProps {
   playerMove: RpsMove | null;
@@ -58,52 +53,52 @@ export const MoveReveal: React.FC<MoveRevealProps> = ({
       role="alert"
       aria-live="assertive"
     >
-      <div className="round-result-container animate-bounce-in">
-        {/* SUBTLE BRAND STAMP */}
-        <div className="round-result-brand">
-          <img
-            src="/favicon.png"
-            alt=""
-            className="round-result-brand-icon"
-            aria-hidden="true"
-          />
-          <span>NUTRI DELIGHT</span>
-        </div>
+      <div className="round-result-container">
 
-        {/* MOVE SHOWDOWN */}
         <div className="round-result-moves">
-          {/* PLAYER MOVE CARD */}
-          <div className="result-move-card card-player animate-slide-in-left">
+
+          <div className="result-move-card card-player">
             <span className="result-move-header">YOU</span>
-            <span className="result-move-emoji" aria-hidden="true">
-              {MOVE_EMOJI[playerMove]}
-            </span>
-            <span className="result-move-name">
+
+            <div className="result-move-visual">
+              <span aria-hidden="true">
+                {playerMove === 'rock' && '✊'}
+                {playerMove === 'paper' && '✋'}
+                {playerMove === 'scissors' && '✌️'}
+              </span>
+            </div>
+
+            <span className="result-move-label">
               {MOVE_LABEL[playerMove]}
             </span>
           </div>
 
-          {/* VS CIRCLE */}
           <div className="result-vs-circle" aria-hidden="true">
-            <span>VS</span>
+            VS
           </div>
 
-          {/* BUDDY MOVE CARD */}
-          <div className="result-move-card card-buddy animate-slide-in-right">
+          <div className="result-move-card card-buddy">
             <span className="result-move-header">BUDDY</span>
-            <span className="result-move-emoji" aria-hidden="true">
-              {MOVE_EMOJI[buddyMove]}
-            </span>
-            <span className="result-move-name">
+
+            <div className="result-move-visual">
+              <span aria-hidden="true">
+                {buddyMove === 'rock' && '✊'}
+                {buddyMove === 'paper' && '✋'}
+                {buddyMove === 'scissors' && '✌️'}
+              </span>
+            </div>
+
+            <span className="result-move-label">
               {MOVE_LABEL[buddyMove]}
             </span>
           </div>
+
         </div>
 
-        {/* OUTCOME BANNER */}
-        <div className="round-result-banner animate-fade-in">
+        <div className="round-result-banner">
           <span>{resultText}</span>
         </div>
+
       </div>
     </div>
   );
